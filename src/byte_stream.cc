@@ -5,14 +5,16 @@
 
 using namespace std;
 
-ByteStream::ByteStream( uint64_t capacity ) : capacity_( capacity ), buffer_(), is_open_( true ), bytes_pushed_( 0 ), bytes_popped_( 0 ) {}
+ByteStream::ByteStream( uint64_t capacity )
+  : capacity_( capacity ), buffer_(), is_open_( true )
+{}
 
 // Push data to stream, but only as much as available capacity allows.
 void Writer::push( string data )
 {
-  int available_capacity = capacity_ - buffer_.size();
-  string curr = data.substr(0,available_capacity);
-  buffer_ = buffer_ + curr; 
+  const uint64_t available_capacity = capacity_ - buffer_.size();
+  const string curr = data.substr( 0, available_capacity );
+  buffer_ = buffer_ + curr;
   bytes_pushed_ += curr.size();
 }
 
@@ -25,13 +27,13 @@ void Writer::close()
 // Has the stream been closed?
 bool Writer::is_closed() const
 {
-  return !is_open_; 
+  return !is_open_;
 }
 
 // How many bytes can be pushed to the stream right now?
 uint64_t Writer::available_capacity() const
 {
-  int available_capacity = capacity_ - buffer_.size();
+  const uint64_t available_capacity = capacity_ - buffer_.size();
   return available_capacity; // Your code here.
 }
 
@@ -53,8 +55,8 @@ string_view Reader::peek() const
 // Remove `len` bytes from the buffer.
 void Reader::pop( uint64_t len )
 {
-  len = min(len, buffer_.size());
-  buffer_ = buffer_.substr(len);
+  len = min( len, buffer_.size() );
+  buffer_ = buffer_.substr( len );
   bytes_popped_ += len;
 }
 
