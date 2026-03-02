@@ -5,17 +5,23 @@
 
 using namespace std;
 
-ByteStream::ByteStream( uint64_t capacity )
-  : capacity_( capacity ), buffer_(), is_open_( true )
-{}
+ByteStream::ByteStream( uint64_t capacity ) : capacity_( capacity ), buffer_(), is_open_( true ) {}
 
 // Push data to stream, but only as much as available capacity allows.
 void Writer::push( string data )
 {
-  const uint64_t available_capacity = capacity_ - buffer_.size();
-  const string curr = data.substr( 0, available_capacity );
-  buffer_ = buffer_ + curr;
-  bytes_pushed_ += curr.size();
+  const uint64_t available_capacity = capacity_ - buffered_bytes_;
+  const uint64_t total_written = min( available_capacity, data.length() );
+  if ( total_written == 0 ){
+    return;
+  }
+
+  data = data.substr( 0, total_written );
+
+  buffer_.emplace_back( std::move( data ) );
+
+  bytes_pushed_ += total_written;
+  buffered_bytes_ += total_written;
 }
 
 // Signal that the stream has reached its ending. Nothing more will be written.
@@ -33,7 +39,7 @@ bool Writer::is_closed() const
 // How many bytes can be pushed to the stream right now?
 uint64_t Writer::available_capacity() const
 {
-  const uint64_t available_capacity = capacity_ - buffer_.size();
+  const uint64_t available_capacity = capacity_ - buffered_bytes_;
   return available_capacity; // Your code here.
 }
 
@@ -49,27 +55,35 @@ uint64_t Writer::bytes_pushed() const
 // the caller to do a lot of extra work.
 string_view Reader::peek() const
 {
-  return buffer_;
+  return buffer_.front();
 }
 
 // Remove `len` bytes from the buffer.
 void Reader::pop( uint64_t len )
 {
-  len = min( len, buffer_.size() );
-  buffer_ = buffer_.substr( len );
+  len = min( len, buffered_bytes_ );
   bytes_popped_ += len;
+  buffered_bytes_ -= len;
+
+  while ( !buffer_.empty() && len >= buffer_.front().length() ) {
+    len -= buffer_.front().length();
+    buffer_.pop_front();
+  }
+  if ( !buffer_.empty() ){
+    buffer_.front() = buffer_.front().substr( len );
+  }
 }
 
 // Is the stream finished (closed and fully popped)?
 bool Reader::is_finished() const
 {
-  return !is_open_ && buffer_.empty(); // Your code here.
+  return !is_open_ && buffered_bytes_ == 0; // Your code here.
 }
 
 // Number of bytes currently buffered (pushed and not popped)
 uint64_t Reader::bytes_buffered() const
 {
-  return buffer_.size();
+  return buffered_bytes_;
 }
 
 // Total number of bytes cumulatively popped from stream
