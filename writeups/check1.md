@@ -1,7 +1,7 @@
 Checkpoint 1 Writeup
 ====================
 
-My name: [your name here]
+My name: Bhanu Verma
 
 My SUNet ID: [your sunetid here]
 

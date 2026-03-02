@@ -12,7 +12,7 @@ void Writer::push( string data )
 {
   const uint64_t available_capacity = capacity_ - buffered_bytes_;
   const uint64_t total_written = min( available_capacity, data.length() );
-  if ( total_written == 0 ){
+  if ( total_written == 0 ) {
     return;
   }
 
@@ -69,7 +69,7 @@ void Reader::pop( uint64_t len )
     len -= buffer_.front().length();
     buffer_.pop_front();
   }
-  if ( !buffer_.empty() ){
+  if ( !buffer_.empty() ) {
     buffer_.front() = buffer_.front().substr( len );
   }
 }
