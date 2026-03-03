@@ -1,6 +1,7 @@
 #pragma once
 
 #include "byte_stream.hh"
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -9,11 +10,7 @@ class Reassembler
 {
 public:
   // Construct Reassembler to write into given ByteStream.
-  explicit Reassembler( ByteStream&& output )
-    : output_( std::move( output ) )
-    , buffer( output_.writer().available_capacity() )
-    , capacity( output_.writer().available_capacity() )
-  {}
+  explicit Reassembler( ByteStream&& output ) : output_( std::move( output ) ) {}
 
   /*
    * Insert a new substring to be reassembled into a ByteStream.
@@ -48,11 +45,20 @@ public:
   // Access output stream writer, but const-only (can't write from outside)
   const Writer& writer() const { return output_.writer(); }
 
+  uint64_t get_ackno() const { return next_byte_expected; }
+
+  uint64_t get_available_capacity() const { return output_.writer().available_capacity(); }
+
+  std::optional<uint64_t> get_last_byte_to_be_delivered() const { return last_byte_to_be_delivered; }
+
+  void set_error() { output_.set_error(); }
+
 private:
   ByteStream output_;
-  std::vector<std::optional<char>> buffer;
-  std::size_t start_index { 0 };
   uint64_t next_byte_expected { 0 };
-  uint64_t capacity {};
   std::optional<uint64_t> last_byte_to_be_delivered {};
+  std::map<uint64_t, std::string> buffer {};
+
+  bool is_end() const;
+  void merge_overlapping_substrings();
 };

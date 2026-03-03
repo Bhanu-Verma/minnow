@@ -2,6 +2,8 @@
 #include "debug.hh"
 #include <iostream>
 #include <memory>
+#include <string_view>
+#include <vector>
 
 using namespace std;
 
@@ -14,6 +16,13 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
     last_byte_to_be_delivered = first_index + data.length() - 1;
   }
 
+  // check if complete string has been delivered
+  if ( is_end() ) {
+    output_.writer().close();
+    return;
+  }
+
+  // Early return if no space is left in underlying bytestream
   const uint64_t available_bytes = output_.writer().available_capacity();
   if ( available_bytes == 0 ) {
     return;
@@ -22,45 +31,40 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
   if ( !data.empty() ) {
     const uint64_t last_byte_allowed_to_be_buffered = next_byte_expected + available_bytes - 1;
 
-    if ( first_index + data.length() - 1 < next_byte_expected || first_index > last_byte_allowed_to_be_buffered ) {
+    // Early return if no action is required for the string
+    if ( first_index > last_byte_allowed_to_be_buffered || first_index + data.length() - 1 < next_byte_expected ) {
       return;
     }
 
-    if ( first_index <= next_byte_expected ) {
-      // Extract the part after `next_byte_expected`
-      data = data.substr( next_byte_expected - first_index );
+    if ( first_index < next_byte_expected ) {
+      data.erase( 0, next_byte_expected - first_index );
+      first_index = next_byte_expected;
+    }
 
-      // Remove the part that can't be buffered
-      data = data.substr( 0, available_bytes );
+    if ( first_index + data.length() - 1 > last_byte_allowed_to_be_buffered ) {
+      data.erase( last_byte_allowed_to_be_buffered - first_index + 1 );
+    }
 
-      for ( std::size_t i = 0; i < data.length(); ++i ) {
-        const std::size_t index = ( start_index + i ) % capacity;
-        buffer[index] = data[i];
-      }
+    auto iter = buffer.find( first_index );
+    if ( iter == buffer.end() ) {
+      buffer[first_index] = move( data );
+    } else if ( ( iter->second ).length() < data.length() ) {
+      iter->second = move( data );
+    }
 
-      string to_write = "";
-      while ( buffer[start_index].has_value() ) {
-        to_write += *buffer[start_index];
-        buffer[start_index] = std::nullopt;
-        start_index = ( start_index + 1 ) % capacity;
-      }
+    merge_overlapping_substrings();
 
-      next_byte_expected += to_write.length();
-
-      output_.writer().push( to_write );
-    } else {
-      // Remove the part that can't be buffered
-      data = data.substr( 0, last_byte_allowed_to_be_buffered - first_index + 1 );
-      const uint64_t offset = first_index - next_byte_expected;
-      for ( std::size_t i = 0; i < data.length(); ++i ) {
-        const std::size_t index = ( start_index + offset + i ) % capacity;
-        buffer[index] = data[i];
-      }
+    if ( first_index == next_byte_expected ) {
+      auto it = buffer.find( first_index );
+      next_byte_expected += ( it->second ).length();
+      output_.writer().push( move( it->second ) );
+      buffer.erase( it );
     }
   }
 
-  if ( last_byte_to_be_delivered && next_byte_expected == ( *last_byte_to_be_delivered ) + 1 ) {
+  if ( is_end() ) {
     output_.writer().close();
+    return;
   }
 }
 
@@ -69,8 +73,51 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 uint64_t Reassembler::count_bytes_pending() const
 {
   uint64_t count = 0;
-  for ( size_t i = 0; i < capacity; ++i ) {
-    count += buffer[i].has_value();
+  for ( const auto& [x, y] : buffer ) {
+    count += y.length();
   }
   return count;
+}
+
+bool Reassembler::is_end() const
+{
+  return ( last_byte_to_be_delivered.has_value() && next_byte_expected == *last_byte_to_be_delivered + 1 );
+}
+
+void Reassembler::merge_overlapping_substrings()
+{
+  if ( buffer.empty() )
+    return;
+
+  auto it = buffer.begin();
+  uint64_t curr_first = it->first;
+  std::string curr_str = it->second;
+  it = buffer.erase( it );
+
+  std::vector<std::pair<uint64_t, std::string>> merged_pairs;
+
+  while ( it != buffer.end() ) {
+    uint64_t a = it->first;
+    std::string_view str_view = it->second;
+    uint64_t b = a + str_view.length() - 1;
+
+    uint64_t curr_end = curr_first + curr_str.length() - 1;
+
+    if ( curr_end < a - 1 ) {
+      merged_pairs.emplace_back( curr_first, curr_str );
+      curr_first = a;
+      curr_str = move( it->second );
+    } else if ( curr_end < b ) {
+      uint64_t rem_length = b - curr_end;
+      string temp = ( it->second ).substr( str_view.length() - rem_length );
+      curr_str += temp;
+    }
+    it = buffer.erase( it );
+  }
+
+  merged_pairs.emplace_back( curr_first, curr_str );
+
+  for ( const auto& [x, y] : merged_pairs ) {
+    buffer.emplace( x, y );
+  }
 }
