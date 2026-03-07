@@ -45,6 +45,8 @@ public:
   // Access output stream writer, but const-only (can't write from outside)
   const Writer& writer() const { return output_.writer(); }
 
+  using BufferType = std::map<uint64_t, std::string>;
+
   uint64_t get_ackno() const { return next_byte_expected; }
 
   uint64_t get_available_capacity() const { return output_.writer().available_capacity(); }
@@ -57,8 +59,8 @@ private:
   ByteStream output_;
   uint64_t next_byte_expected { 0 };
   std::optional<uint64_t> last_byte_to_be_delivered {};
-  std::map<uint64_t, std::string> buffer {};
+  BufferType buffer {};
 
   bool is_end() const;
-  void merge_overlapping_substrings();
+  bool merge_iterators(BufferType::iterator it, BufferType::iterator next_it);
 };

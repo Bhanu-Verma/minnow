@@ -47,15 +47,38 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 
     auto iter = buffer.find( first_index );
     if ( iter == buffer.end() ) {
-      buffer[first_index] = move( data );
+      iter = buffer.emplace( first_index, move(data) ).first;
     } else if ( ( iter->second ).length() < data.length() ) {
       iter->second = move( data );
     }
 
-    merge_overlapping_substrings();
+    // merge the intervals to the right of current inserted interval
+    while ( true ) {
+      auto next_it = std::next( iter );
+      if ( next_it == buffer.end() ) {
+        break;
+      }
+      bool is_merged = merge_iterators( iter, next_it );
+      if( !is_merged ) {
+        break;
+      }
+    }
+
+    // merge the intervals to the left of current inserted interval
+    while ( iter != buffer.begin() ) {
+      auto prev_it = std::prev(iter);
+
+      bool is_merged = merge_iterators( prev_it, iter );
+      if( is_merged ) {
+        iter = prev_it;
+      }
+      else {
+        break;
+      }
+    }
 
     if ( first_index == next_byte_expected ) {
-      auto it = buffer.find( first_index );
+      auto it = buffer.begin();       // Claim: it will always be the first entry in the map
       next_byte_expected += ( it->second ).length();
       output_.writer().push( move( it->second ) );
       buffer.erase( it );
@@ -84,40 +107,22 @@ bool Reassembler::is_end() const
   return ( last_byte_to_be_delivered.has_value() && next_byte_expected == *last_byte_to_be_delivered + 1 );
 }
 
-void Reassembler::merge_overlapping_substrings()
-{
-  if ( buffer.empty() )
-    return;
+bool Reassembler::merge_iterators( BufferType::iterator it, BufferType::iterator next_it ) {
+  auto curr_first = it->first;
+  auto next_first = next_it->first;
 
-  auto it = buffer.begin();
-  uint64_t curr_first = it->first;
-  std::string curr_str = it->second;
-  it = buffer.erase( it );
+  auto curr_end = curr_first + (it->second).length() - 1;
+  auto next_end = next_first + (next_it->second).length() - 1;
 
-  std::vector<std::pair<uint64_t, std::string>> merged_pairs;
-
-  while ( it != buffer.end() ) {
-    uint64_t a = it->first;
-    std::string_view str_view = it->second;
-    uint64_t b = a + str_view.length() - 1;
-
-    uint64_t curr_end = curr_first + curr_str.length() - 1;
-
-    if ( curr_end < a - 1 ) {
-      merged_pairs.emplace_back( curr_first, curr_str );
-      curr_first = a;
-      curr_str = move( it->second );
-    } else if ( curr_end < b ) {
-      uint64_t rem_length = b - curr_end;
-      string temp = ( it->second ).substr( str_view.length() - rem_length );
-      curr_str += temp;
+  if ( curr_end >= ( next_first - 1 ) ) {
+    if ( curr_end < next_end) {
+      uint64_t rem_length = next_end - curr_end;
+      (it->second).append( (next_it->second).substr( (next_it->second).length() - rem_length ) );
     }
-    it = buffer.erase( it );
+    buffer.erase( next_it );
+    return true;
   }
-
-  merged_pairs.emplace_back( curr_first, curr_str );
-
-  for ( const auto& [x, y] : merged_pairs ) {
-    buffer.emplace( x, y );
+  else {
+    return false;
   }
 }
