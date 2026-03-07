@@ -16,8 +16,7 @@ void Writer::push( string data )
     return;
   }
 
-  data = data.substr( 0, total_written );
-
+  data.erase( total_written );
   buffer_.emplace_back( std::move( data ) );
 
   bytes_pushed_ += total_written;
@@ -39,8 +38,7 @@ bool Writer::is_closed() const
 // How many bytes can be pushed to the stream right now?
 uint64_t Writer::available_capacity() const
 {
-  const uint64_t available_capacity = capacity_ - buffered_bytes_;
-  return available_capacity; // Your code here.
+  return capacity_ - buffered_bytes_;
 }
 
 // Total number of bytes cumulatively pushed to the stream
@@ -70,7 +68,7 @@ void Reader::pop( uint64_t len )
     buffer_.pop_front();
   }
   if ( !buffer_.empty() ) {
-    buffer_.front() = buffer_.front().substr( len );
+    buffer_.front().erase(0, len);
   }
 }
 
