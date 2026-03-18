@@ -68,7 +68,7 @@ void Reader::pop( uint64_t len )
     buffer_.pop_front();
   }
   if ( !buffer_.empty() ) {
-    buffer_.front().erase(0, len);
+    buffer_.front().erase( 0, len );
   }
 }
 

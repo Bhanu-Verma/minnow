@@ -65,19 +65,16 @@ void TCPSender::receive( const TCPReceiverMessage& msg )
   /** Update the remaining window here.
       Window puts a limit on the `sequence numbers in flight`
   */
-  if( msg.window_size == 0 ){
+  if ( msg.window_size == 0 ) {
     rem_window_ = 1;
-  }
-  else {
+  } else {
     uint64_t range_end = absolute_ackno + msg.window_size - 1;
     if ( range_end >= curr_seqno_ ) {
       rem_window_ = range_end - curr_seqno_ + 1;
-    }
-    else {
+    } else {
       rem_window_ = 0;
     }
   }
-  
 
   if ( last_ackno_.has_value() && last_ackno_ >= absolute_ackno ) {
     return;
@@ -140,14 +137,13 @@ std::vector<TCPSenderMessage> TCPSender::construct_messages( uint16_t rwnd )
 
   while ( rwnd ) {
     if ( reader().is_finished() ) {
-      if( curr_seqno_==0 && rwnd == 1 ) {
-        TCPSenderMessage msg {Wrap32::wrap( curr_seqno_, isn_ ), true, "", false, input_.has_error() };
+      if ( curr_seqno_ == 0 && rwnd == 1 ) {
+        TCPSenderMessage msg { Wrap32::wrap( curr_seqno_, isn_ ), true, "", false, input_.has_error() };
         messages.push_back( msg );
         ++curr_seqno_;
         --rwnd;
-      }
-      else if ( !FIN_sent_ ) {
-        TCPSenderMessage msg {Wrap32::wrap( curr_seqno_, isn_ ), curr_seqno_ == 0, "", true, input_.has_error() };
+      } else if ( !FIN_sent_ ) {
+        TCPSenderMessage msg { Wrap32::wrap( curr_seqno_, isn_ ), curr_seqno_ == 0, "", true, input_.has_error() };
         messages.push_back( msg );
         curr_seqno_ += msg.sequence_length();
         --rwnd;
@@ -164,7 +160,9 @@ std::vector<TCPSenderMessage> TCPSender::construct_messages( uint16_t rwnd )
     }
 
     string payload = "";
-    read( reader(), min<uint64_t>( message_size, min( TCPConfig::MAX_PAYLOAD_SIZE, reader().bytes_buffered() )), payload );
+    read( reader(),
+          min<uint64_t>( message_size, min( TCPConfig::MAX_PAYLOAD_SIZE, reader().bytes_buffered() ) ),
+          payload );
 
     TCPSenderMessage message {
       Wrap32::wrap( curr_seqno_, isn_ ), curr_seqno_ == 0, payload, false, input_.has_error() };

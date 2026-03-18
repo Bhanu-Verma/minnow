@@ -62,5 +62,5 @@ private:
   BufferType buffer {};
 
   bool is_end() const;
-  bool merge_iterators(BufferType::iterator it, BufferType::iterator next_it);
+  bool merge_iterators( BufferType::iterator it, BufferType::iterator next_it );
 };

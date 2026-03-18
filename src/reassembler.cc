@@ -47,7 +47,7 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
 
     auto iter = buffer.find( first_index );
     if ( iter == buffer.end() ) {
-      iter = buffer.emplace( first_index, move(data) ).first;
+      iter = buffer.emplace( first_index, move( data ) ).first;
     } else if ( ( iter->second ).length() < data.length() ) {
       iter->second = move( data );
     }
@@ -59,26 +59,25 @@ void Reassembler::insert( uint64_t first_index, string data, bool is_last_substr
         break;
       }
       bool is_merged = merge_iterators( iter, next_it );
-      if( !is_merged ) {
+      if ( !is_merged ) {
         break;
       }
     }
 
     // merge the intervals to the left of current inserted interval
     while ( iter != buffer.begin() ) {
-      auto prev_it = std::prev(iter);
+      auto prev_it = std::prev( iter );
 
       bool is_merged = merge_iterators( prev_it, iter );
-      if( is_merged ) {
+      if ( is_merged ) {
         iter = prev_it;
-      }
-      else {
+      } else {
         break;
       }
     }
 
     if ( first_index == next_byte_expected ) {
-      auto it = buffer.begin();       // Claim: it will always be the first entry in the map
+      auto it = buffer.begin(); // Claim: it will always be the first entry in the map
       next_byte_expected += ( it->second ).length();
       output_.writer().push( move( it->second ) );
       buffer.erase( it );
@@ -107,22 +106,22 @@ bool Reassembler::is_end() const
   return ( last_byte_to_be_delivered.has_value() && next_byte_expected == *last_byte_to_be_delivered + 1 );
 }
 
-bool Reassembler::merge_iterators( BufferType::iterator it, BufferType::iterator next_it ) {
+bool Reassembler::merge_iterators( BufferType::iterator it, BufferType::iterator next_it )
+{
   auto curr_first = it->first;
   auto next_first = next_it->first;
 
-  auto curr_end = curr_first + (it->second).length() - 1;
-  auto next_end = next_first + (next_it->second).length() - 1;
+  auto curr_end = curr_first + ( it->second ).length() - 1;
+  auto next_end = next_first + ( next_it->second ).length() - 1;
 
   if ( curr_end >= ( next_first - 1 ) ) {
-    if ( curr_end < next_end) {
+    if ( curr_end < next_end ) {
       uint64_t rem_length = next_end - curr_end;
-      (it->second).append( (next_it->second).substr( (next_it->second).length() - rem_length ) );
+      ( it->second ).append( ( next_it->second ).substr( ( next_it->second ).length() - rem_length ) );
     }
     buffer.erase( next_it );
     return true;
-  }
-  else {
+  } else {
     return false;
   }
 }
