@@ -1,5 +1,5 @@
 #include "debug.hh"
-#include "socket.hh"
+#include "tcp_minnow_socket.hh"
 
 #include <cstdlib>
 #include <iostream>
@@ -14,7 +14,7 @@ void get_URL( const string& host, const string& path )
   debug( "Function called: get_URL( \"{}\", \"{}\" )", host, path );
 
   // Create a new TCP socket and connect it to the server
-  TCPSocket sock {};
+  CS144TCPSocket sock {};
   sock.connect( Address( host, "80" ) );
 
   const string request
@@ -29,6 +29,7 @@ void get_URL( const string& host, const string& path )
   }
 
   cout << response;
+  sock.wait_until_closed();
 }
 } // namespace
 
